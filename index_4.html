@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>冯如杯模拟器</title>
+<style>
+:root {
+  --beihang-blue: #004EA2;
+  --beihang-blue-light: #3182CE;
+  --beihang-blue-lighter: #E8F4FD;
+  --bg-primary: #F7FAFC;
+  --bg-card: #FFFFFF;
+  --text-primary: #1A202C;
+  --text-secondary: #718096;
+  --border: #E2E8F0;
+  --success: #38A169;
+  --warning: #DD6B20;
+  --danger: #E53E3E;
+  --info: #3182CE;
+  --shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background: #f0f2f5; color: var(--text-primary); min-height: 100vh; overflow-x: hidden;
+}
+#game-container { max-width: 640px; margin: 0 auto; padding: 16px; min-height: 100vh; position: relative; }
+
+/* Top Bar */
+#top-bar {
+  background: var(--beihang-blue); color: white; padding: 12px 16px; border-radius: 12px;
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+  flex-wrap: wrap; gap: 8px; box-shadow: var(--shadow);
+}
+#top-bar .day-info { font-weight: 700; font-size: 15px; }
+#top-bar .phase-tag { padding: 4px 14px; border-radius: 16px; font-size: 13px; font-weight: 600; color: white; }
+#top-bar .location-name { font-size: 13px; opacity: 0.9; }
+#top-bar .help-btn { background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+#top-bar .help-btn:hover { background: rgba(255,255,255,0.35); }
+
+/* Layout */
+#main-layout { display: grid; grid-template-columns: 200px 1fr; gap: 12px; margin-bottom: 12px; }
+@media (max-width: 767px) { #main-layout { grid-template-columns: 1fr; } }
+
+/* Attribute Panel */
+#attr-panel { background: var(--bg-card); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); height: fit-content; }
+#attr-panel h3 { font-size: 14px; margin-bottom: 12px; color: var(--text-secondary); text-align: center; }
+.attr-item { margin-bottom: 12px; }
+.attr-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; font-weight: 600; }
+.attr-bar { height: 20px; border-radius: 10px; background: #EDF2F7; overflow: hidden; position: relative; }
+.attr-fill { height: 100%; border-radius: 10px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-size: 11px; font-weight: 700; min-width: 30px; }
+.attr-fill.energy { background: linear-gradient(90deg, #E53E3E, #FC8181); }
+.attr-fill.creativity { background: linear-gradient(90deg, #3182CE, #63B3ED); }
+.attr-fill.completion { background: linear-gradient(90deg, #38A169, #68D391); }
+.attr-fill.defense { background: linear-gradient(90deg, #DD6B20, #F6AD55); }
+.attr-fill.standard { background: linear-gradient(90deg, #805AD5, #B794F6); }
+.track-badge { margin-top: 10px; padding: 8px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: 600; background: var(--beihang-blue-lighter); color: var(--beihang-blue); }
+
+/* Story Area */
+#story-area { background: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); min-height: 280px; position: relative; transition: background-color 0.5s ease; }
+#story-area.location-xinzhu { background-color: #EBF4FF; }
+#story-area.location-zhulou { background-color: #F0F7FF; }
+#story-area.location-library { background-color: #FFFFF0; }
+#story-area.location-lvyuan { background-color: #F0FFF4; }
+#story-area.location-shahelab { background-color: #FFF5F5; }
+#story-area.location-dorm { background-color: #FFFAF0; }
+#story-text { font-size: 16px; line-height: 1.8; color: var(--text-primary); min-height: 120px; white-space: pre-wrap; }
+#story-text.typing::after { content: '|'; animation: blink 0.7s infinite; color: var(--beihang-blue); font-weight: 700; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Location Selector */
+#location-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; justify-content: center; }
+.loc-btn { padding: 8px 16px; border-radius: 20px; border: 2px solid var(--border); background: white; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s ease; color: var(--text-primary); }
+.loc-btn:hover { border-color: var(--beihang-blue); background: var(--beihang-blue-lighter); transform: translateY(-1px); }
+.loc-btn.active { background: var(--beihang-blue); color: white; border-color: var(--beihang-blue); }
+.loc-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Action Buttons */
+#action-area { background: var(--bg-card); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
+#action-title { font-size: 14px; color: var(--text-secondary); margin-bottom: 10px; text-align: center; }
+#action-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.action-btn { padding: 14px 16px; border-radius: 10px; border: 2px solid var(--border); background: white; cursor: pointer; text-align: left; transition: all 0.15s ease; position: relative; }
+.action-btn:hover { border-color: var(--beihang-blue); background: var(--beihang-blue-lighter); transform: translateY(-2px); box-shadow: var(--shadow); }
+.action-btn:active { transform: translateY(0); }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+.action-btn .act-name { font-size: 14px; font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 4px; }
+.action-btn .act-effect { font-size: 11px; color: var(--text-secondary); }
+.action-btn .act-once { position: absolute; top: 6px; right: 8px; font-size: 10px; background: var(--warning); color: white; padding: 2px 6px; border-radius: 8px; font-weight: 700; }
+
+/* Modal */
+#modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 16px; }
+#modal-overlay.show { display: flex; }
+.modal-box { background: white; border-radius: 16px; max-width: 500px; width: 100%; max-height: 85vh; overflow-y: auto; animation: modalIn 0.25s ease-out; box-shadow: var(--shadow-lg); }
+@keyframes modalIn { from { opacity: 0; transform: scale(0.92) translateY(-12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.modal-header { padding: 18px 20px; border-radius: 16px 16px 0 0; color: white; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.modal-body { padding: 20px; font-size: 15px; line-height: 1.8; }
+.modal-footer { padding: 0 20px 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.modal-btn { padding: 12px 28px; border-radius: 10px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.15s; color: white; }
+.modal-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+
+/* Menu Screens */
+.screen { display: none; animation: fadeIn 0.4s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+#menu-screen { text-align: center; padding-top: 80px; }
+.game-title { font-size: 36px; font-weight: 800; color: var(--beihang-blue); margin-bottom: 8px; letter-spacing: 2px; }
+.game-subtitle { font-size: 16px; color: var(--text-secondary); margin-bottom: 40px; }
+.menu-btn { display: block; width: 220px; margin: 12px auto; padding: 16px; border-radius: 12px; border: 2px solid var(--beihang-blue); background: var(--beihang-blue); color: white; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+.menu-btn:hover { filter: brightness(1.15); transform: translateY(-2px); }
+.menu-btn.secondary { background: white; color: var(--beihang-blue); }
+.menu-btn.secondary:hover { background: var(--beihang-blue-lighter); }
+#track-screen .track-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 30px; }
+@media (max-width: 480px) { #track-screen .track-cards { grid-template-columns: 1fr; } }
+.track-card { background: white; border-radius: 16px; padding: 24px; box-shadow: var(--shadow); cursor: pointer; border: 3px solid transparent; transition: all 0.2s; text-align: center; }
+.track-card:hover { border-color: var(--beihang-blue); transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.track-card h3 { font-size: 22px; color: var(--beihang-blue); margin-bottom: 8px; }
+.track-card .difficulty { font-size: 20px; margin-bottom: 10px; }
+.track-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+/* Toast */
+#toast { position: fixed; top: 20px; right: 20px; padding: 14px 22px; border-radius: 10px; color: white; font-weight: 600; font-size: 14px; z-index: 2000; display: none; animation: slideIn 0.3s ease; max-width: 300px; }
+#toast.show { display: block; }
+#toast.success { background: var(--success); }
+#toast.error { background: var(--danger); }
+#toast.info { background: var(--info); }
+@keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+
+/* Quiz */
+.quiz-options { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+.quiz-option { padding: 14px 16px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; font-size: 14px; background: white; text-align: left; }
+.quiz-option:hover { border-color: var(--beihang-blue); background: var(--beihang-blue-lighter); }
+.quiz-option.selected { border-color: var(--beihang-blue); background: var(--beihang-blue-lighter); }
+.quiz-option.correct { border-color: var(--success); background: #F0FFF4; }
+.quiz-option.wrong { border-color: var(--danger); background: #FFF5F5; }
+
+/* Score Display */
+.score-display { text-align: center; padding: 20px; background: var(--bg-primary); border-radius: 12px; margin: 16px 0; }
+.score-number { font-size: 42px; font-weight: 800; color: var(--beihang-blue); }
+.score-stars { font-size: 28px; margin-top: 8px; }
+.score-detail { margin-top: 12px; text-align: left; font-size: 13px; }
+.score-detail .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 3px; }
+@media (max-width: 480px) { #action-buttons { grid-template-columns: 1fr; } }
+/* ===== Ripple Effect ===== */
+.ripple { position: relative; overflow: hidden; }
+.ripple::after {
+  content: ''; position: absolute; width: 100%; height: 100%;
+  top: 0; left: 0; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.4) 10%, transparent 10.01%);
+  background-repeat: no-repeat; background-position: 50%;
+  transform: scale(10, 10); opacity: 0;
+  transition: transform 0.5s, opacity 0.5s;
+}
+.ripple:active::after { transform: scale(0, 0); opacity: 0.3; transition: 0s; }
+#float-controls {
+  position: fixed; bottom: 20px; right: 20px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 100;
+}
+.float-btn {
+  width: 50px; height: 50px; border-radius: 50%;
+  border: none; background: var(--beihang-blue); color: white;
+  font-size: 20px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+}
+.float-btn:hover { transform: scale(1.1); filter: brightness(1.15); }
+.float-btn:active { transform: scale(0.95); }
+#buff-display {
+  background: var(--bg-card); border-radius: 10px; padding: 10px 14px;
+  margin-bottom: 10px; box-shadow: var(--shadow); font-size: 12px;
+  display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+#buff-display.show { display: flex; }
+.buff-tag {
+  background: linear-gradient(90deg, #FFD700, #FFA500);
+  color: #333; padding: 3px 10px; border-radius: 12px;
+  font-weight: 700; font-size: 11px; animation: pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+#history-log {
+  background: var(--bg-card); border-radius: 10px; padding: 10px 14px;
+  margin-bottom: 10px; box-shadow: var(--shadow); font-size: 12px; max-height: 100px;
+  overflow-y: auto; display: none;
+}
+#history-log.show { display: block; }
+#history-log .log-title { font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; font-size: 11px; }
+#history-log .log-entry { padding: 2px 0; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+#history-log .log-entry:last-child { border-bottom: none; }
+#checkpoint-countdown {
+  background: var(--bg-card); border-radius: 10px; padding: 8px 14px;
+  margin-bottom: 10px; box-shadow: var(--shadow); font-size: 13px;
+  text-align: center; color: var(--text-secondary); font-weight: 600;
+}
+#checkpoint-countdown.urgent { color: var(--danger); animation: pulse 1s infinite; }
+#achievement-popup {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+  background: linear-gradient(90deg, #FFD700, #FFA500); color: #333;
+  padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 14px;
+  z-index: 3000; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  pointer-events: none;
+}
+#achievement-popup.show { transform: translateX(-50%) translateY(0); }
+#sound-toggle {
+  position: fixed; bottom: 20px; left: 20px; z-index: 100;
+  width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--border);
+  background: white; cursor: pointer; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow); transition: all 0.15s;
+}
+#sound-toggle:hover { border-color: var(--beihang-blue); }
+@media (max-width: 480px) {
+  .action-btn { padding: 18px 20px; min-height: 60px; }
+  .action-btn .act-name { font-size: 16px; }
+  .loc-btn { padding: 10px 18px; font-size: 14px; }
+  .float-btn { width: 56px; height: 56px; font-size: 22px; }
+  #sound-toggle { width: 48px; height: 48px; font-size: 20px; }
+}
+</style>
+</head>
+<body>
+<div id="game-container">
+
+  <div id="menu-screen" class="screen active">
+    <div class="game-title">冯如杯模拟器</div>
+    <div class="game-subtitle">从选题到答辩的40天</div>
+    <button class="menu-btn" onclick="game.toTrackSelect()">开始游戏</button>
+    <button class="menu-btn secondary" onclick="game.showHelp()">操作说明</button>
+    <button class="menu-btn secondary" id="btn-continue" style="display:none" onclick="game.loadGame()">继续游戏</button>
+  </div>
+
+  <div id="track-screen" class="screen">
+    <div style="text-align:center; margin-top:40px;">
+      <h2 style="color:var(--beihang-blue); margin-bottom:8px;">选择你的赛道</h2>
+      <p style="color:var(--text-secondary); font-size:14px;">赛道一旦选择不可更改，将直接影响整局游戏的难度和上限</p>
+    </div>
+    <div class="track-cards">
+      <div class="track-card" onclick="game.selectTrack('main')">
+        <h3>主赛道</h3>
+        <div class="difficulty">⭐⭐⭐⭐⭐</div>
+        <p>学术科技作品竞赛<br><br>难度大，上限高<br>可冲击特等奖（S结局）<br>负面事件概率+20%<br>完成度增速×0.9</p>
+      </div>
+      <div class="track-card" onclick="game.selectTrack('small')">
+        <h3>小赛道</h3>
+        <div class="difficulty">⭐⭐⭐</div>
+        <p>创意赛道/专项赛道<br><br>容易获奖，上限低<br>最高一等奖（A结局封顶）<br>正面事件概率+10%<br>完成度增速×1.1</p>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:24px;">
+      <button class="menu-btn secondary" style="width:160px;" onclick="game.toMenu()">返回</button>
+    </div>
+  </div>
+
+  <div id="game-screen" class="screen">
+    <div id="top-bar">
+      <span class="day-info" id="day-display">第1天 / 40天</span>
+      <span class="phase-tag" id="phase-tag">选题阶段</span>
+      <span class="location-name" id="location-display">📍 宿舍</span>
+      <button class="help-btn" onclick="game.showHelp()">?</button>
+    </div>
+    <div id="main-layout">
+      <div id="attr-panel">
+        <h3>五维属性</h3>
+        <div class="attr-item">
+          <div class="attr-label"><span>🔴 精力</span><span id="val-energy">100</span></div>
+          <div class="attr-bar"><div class="attr-fill energy" id="bar-energy" style="width:100%">100%</div></div>
+        </div>
+        <div class="attr-item">
+          <div class="attr-label"><span>🔵 创新能力</span><span id="val-creativity">10</span></div>
+          <div class="attr-bar"><div class="attr-fill creativity" id="bar-creativity" style="width:10%">10%</div></div>
+        </div>
+        <div class="attr-item">
+          <div class="attr-label"><span>🟢 完成度</span><span id="val-completion">0</span></div>
+          <div class="attr-bar"><div class="attr-fill completion" id="bar-completion" style="width:0%">0%</div></div>
+        </div>
+        <div class="attr-item">
+          <div class="attr-label"><span>🟠 答辩准备</span><span id="val-defense">0</span></div>
+          <div class="attr-bar"><div class="attr-fill defense" id="bar-defense" style="width:0%">0%</div></div>
+        </div>
+        <div class="attr-item">
+          <div class="attr-label"><span>🟣 规范度</span><span id="val-standard">0</span></div>
+          <div class="attr-bar"><div class="attr-fill standard" id="bar-standard" style="width:0%">0%</div></div>
+        </div>
+        <div class="track-badge" id="track-badge">主赛道</div>
+      </div>
+      <div id="story-area" class="location-dorm">
+        <div id="story-text"></div>
+      </div>
+    </div>
+    
+    <!-- Buff Display -->
+    <div id="buff-display">
+      <span style="color:var(--text-secondary);">当前状态：</span>
+      <span id="buff-tags"></span>
+    </div>
+    <!-- Checkpoint Countdown -->
+    <div id="checkpoint-countdown"></div>
+    <!-- History Log -->
+    <div id="history-log">
+      <div class="log-title">最近行动记录</div>
+      <div id="log-entries"></div>
+    </div>
+    <div id="location-bar"></div>
+    <div id="action-area">
+      <div id="action-title">选择今天的行动</div>
+      <div id="action-buttons"></div>
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+<div id="modal-overlay" onclick="if(event.target===this && game._modalAllowOutside)game.closeModal()">
+  <div class="modal-box" id="modal-box">
+    <div class="modal-header" id="modal-header">标题</div>
+    <div class="modal-body" id="modal-body">内容</div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// #######################################################################
+// #                        冯如杯模拟器 - 游戏数据与引擎                      #
+// #######################################################################
+
+// ===== 1. 游戏配置常量 =====
+const CONFIG = {
+  TOTAL_DAYS: 40,
+  ENERGY_MAX: 100,
+  ENERGY_DANGER: 30,
+  PHASES: [
+    { name: '选题阶段', color: '#4299E1', days: [1,5], key: 'topic' },
+    { name: '研发阶段', color: '#38A169', days: [7,19], key: 'research' },
+    { name: '后期冲刺', color: '#DD6B20', days: [21,29], key: 'sprint' },
+    { name: '答辩准备', color: '#805AD5', days: [31,39], key: 'defense_prep' },
+    { name: '最终答辩', color: '#1A202C', days: [40,40], key: 'final' }
+  ],
+  CHECKPOINT_DAYS: [6, 20, 30, 40],
+  CROSS_CAMPUS_COST: 5,
+  SAVE_KEY: 'fengru_cup_simulator_save_v2'
+};
+
+// ===== 2. 七阶段数据 =====
+const PHASES_DATA = [
+  { id: 'topic', name: '选题阶段', startDay: 1, endDay: 5, color: '#4299E1', description: '刚刚确定赛道，你需要在课业之余阅读文献、碰撞灵感，找到一个既有创新性又可行的项目方向。' },
+  { id: 'opening', name: '开题报告', startDay: 6, endDay: 6, color: '#E53E3E', description: '今天是开题报告截止日期，评审组将审阅你的选题与技术路线，决定你是否能进入正式研发。' },
+  { id: 'research', name: '研发阶段', startDay: 7, endDay: 19, color: '#38A169', description: '开题通过后的核心研发期。代码、实验、硬件调试——这是决定你能不能拿奖的关键阶段。' },
+  { id: 'midterm', name: '中期检查', startDay: 20, endDay: 20, color: '#DD6B20', description: '评审组要检查你的项目进度——代码写完了吗？实物做出来了吗？完成度至少需要75。' },
+  { id: 'sprint', name: '后期冲刺', startDay: 21, endDay: 29, color: '#DD6B20', description: '中期检查后的最后冲刺。完善作品、写材料、准备答辩PPT，时间紧任务重。' },
+  { id: 'review', name: '有效性审查', startDay: 30, endDay: 30, color: '#E53E3E', description: '格式审查员将逐一核对材料清单。规范度不达标就会被打回，这是一条生死线。' },
+  { id: 'defense', name: '答辩阶段', startDay: 31, endDay: 40, color: '#805AD5', description: '最后的答辩准备阶段。模拟答辩、熔炼PPT、修改格式——等待最终的结局。' }
+];
+
+// ===== 3. 六地点与行动数据 =====
+const LOCATIONS = [
+  {
+    id: 'xinzhu', name: '新主楼', campus: 'xueyuanlu',
+    desc: '新主楼的二层大平台灯火通明，走廊两侧贴满了科技创新大擂台的海报。几组同学围着展板激烈讨论，远处传来键盘敲击声——又有人在工位上通宵调代码。你看了看手里的项目计划书，深吸一口气。电梯又在维修了，你爬了三层楼梯才找到那个带插座的黄金座位。',
+    className: 'location-xinzhu',
+    actions: [
+      { id: 'code', name: '写代码/调实验', effects: { energy: -6, completion: 8, standard: -2 }, desc: '完成度+8  精力-6  规范-2' },
+      { id: 'arena', name: '参加科技创新大擂台', effects: { energy: -5, completion: 5, creativity: 5 }, desc: '完成度+5  创新+5  精力-5', oneTime: true },
+      { id: 'search', name: '上机查资料', effects: { energy: -3, creativity: 3, standard: 2 }, desc: '创新+3  规范+2  精力-3' },
+      { id: 'overnight', name: '通宵加班(危险)', effects: { energy: -15, completion: 14, standard: -5 }, desc: '完成度+14  精力-15  规范-5', req: { energyBelow: 30 }, risk: 0.3 }
+    ]
+  },
+  {
+    id: 'zhulou', name: '主楼', campus: 'xueyuanlu',
+    desc: '主楼的教室里课间歇声不断。一个同学正在黑板前跟导师讨论问题，几个学生围在一起看着笔记本低声交谈。倒数第二排的风扇发出有节奏的咚咚声。你找了个靠窗的位置打开电脑，准备利用课间时间做点事。',
+    className: 'location-zhulou',
+    actions: [
+      { id: 'selfstudy', name: '教室自习', effects: { energy: -3, creativity: 2, standard: 4 }, desc: '创新+2  规范+4  精力-3' },
+      { id: 'meetMentor', name: '课间偶遇导师', effects: { energy: -2, creativity: 6, defense: 3 }, desc: '创新+6  答辩+3  精力-2', oneTime: true },
+      { id: 'discuss', name: '和同学讨论思路', effects: { energy: -3, creativity: 4, completion: 2 }, desc: '创新+4  完成+2  精力-3' },
+      { id: 'notes', name: '整理课堂笔记', effects: { energy: -2, standard: 5 }, desc: '规范+5  精力-2' }
+    ]
+  },
+  {
+    id: 'library', name: '图书馆', campus: 'xueyuanlu',
+    desc: '图书馆三楼东侧的科创文献区，书架上整齐排列着往届冯如杯优秀作品集。几个同学埋头在电脑前查知网，打印机嗡嗡作响。你注意到墙上挂着去年特等奖的作品展板——一款无人机视觉识别系统。',
+    className: 'location-library',
+    actions: [
+      { id: 'literature', name: '查文献', effects: { energy: -4, creativity: 5, standard: 3 }, desc: '创新+5  规范+3  精力-4' },
+      { id: 'borrow', name: '借阅往届作品集', effects: { energy: -3, completion: 2, creativity: 6, standard: 4 }, desc: '创新+6  规范+4  完成+2', oneTime: true },
+      { id: 'format', name: '整理参考文献格式', effects: { energy: -5, standard: 8 }, desc: '规范度+8  精力-5' },
+      { id: 'exhibit', name: '观摩优秀作品展板', effects: { energy: -2, completion: 3, creativity: 4 }, desc: '创新+4  完成+3  精力-2', oneTime: true }
+    ]
+  },
+  {
+    id: 'lvyuan', name: '绿园', campus: 'xueyuanlu',
+    desc: '绿园里的梧桐树沙沙作响，几只麻雀在草坪上跳跃。长椅上有人捧着咖啡发呆，不远处一位同学正对着笔记本电脑喃喃自语——大概是在排练答辩。一只橘猫从灌木丛后探出头来，懒洋洋地伸了个懒腰。',
+    className: 'location-lvyuan',
+    actions: [
+      { id: 'walk', name: '散步找灵感', effects: { energy: 8, creativity: 4 }, desc: '精力+8  创新+4' },
+      { id: 'coffee', name: '休息喝咖啡', effects: { energy: 15 }, desc: '精力+15' },
+      { id: 'teammate', name: '偶遇队友讨论', effects: { energy: -3, completion: 3, creativity: 4 }, desc: '完成+3  创新+4  精力-3' },
+      { id: 'cat', name: '撸猫', effects: { energy: 5, creativity: 2 }, desc: '精力+5  创新+2' }
+    ]
+  },
+  {
+    id: 'shahelab', name: '沙河实验楼', campus: 'shahe',
+    desc: '沙河实验楼的走廊比学院路新得多，空气中有一股淡淡的3D打印耗材味道。风洞实验室的门缝里传出低沉的轰鸣，像是某个巨兽在呼吸。几组同学围着示波器和电路板忙碌，墙上的时钟显示晚上十点——但这里依然灯火通明。',
+    className: 'location-shahelab',
+    actions: [
+      { id: 'hardware', name: '做硬件实验', effects: { energy: -7, completion: 10, creativity: 2 }, desc: '完成度+10  创新+2  精力-7' },
+      { id: 'data', name: '调数据/写报告', effects: { energy: -5, completion: 7, standard: 3 }, desc: '完成+7  规范+3  精力-5' },
+      { id: 'test', name: '测试实物功能', effects: { energy: -6, completion: 8, standard: -1 }, desc: '完成+8  规范-1  精力-6' },
+      { id: 'senior', name: '请教实验室学长', effects: { energy: -4, completion: 5, creativity: 5 }, desc: '完成+5  创新+5  精力-4', oneTime: true }
+    ]
+  },
+  {
+    id: 'dorm', name: '宿舍', campus: 'universal',
+    desc: '宿舍的椅子上堆着衣服，书桌上摆着泡面和半杯凉掉的咖啡。室友在打游戏，键盘声噼里啪啦。你瘫在椅子上，盯着天花板——是睡觉恢复体力，还是再撑一会儿用AI工具赶进度？',
+    className: 'location-dorm',
+    actions: [
+      { id: 'sleep', name: '睡觉', effects: { energy: 40 }, desc: '精力+40' },
+      { id: 'ai', name: '使用AI工具辅助', effects: { energy: -3, completion: 5, creativity: 3, standard: 2 }, desc: '答对题后效果×1.5倍', isQuiz: true },
+      { id: 'doc', name: '写项目文档', effects: { energy: -5, completion: 3, standard: 6 }, desc: '完成+3  规范+6  精力-5' },
+      { id: 'food', name: '点外卖吃航味', effects: { energy: 10 }, desc: '精力+10' }
+    ]
+  }
+];
+
+// ===== 4. 答题题库（10道） =====
+const QUIZZES = [
+  {
+    id: 'q1',
+    question: '冯如杯竞赛是以哪位人物命名的？',
+    options: ['A. 钱学森', 'B. 冯如', 'C. 林士谔', 'D. 屠守锷'],
+    correct: 1,
+    explanation: '冯如是中国第一位飞机设计师，被誉为"中国航空之父"。',
+    buff: '回答正确！DeepSeek加速器已启动，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q2',
+    question: '北航的校训是什么？',
+    options: ['A. 自强不息，厚德载物', 'B. 求实创新，励志图强', 'C. 德才兼备，知行合一', 'D. 航空航天，报效祖国'],
+    correct: 2,
+    explanation: '北航校训为"德才兼备，知行合一"。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q3',
+    question: '冯如杯答辩陈述时间通常限制在？',
+    options: ['A. 3分钟', 'B. 5分钟', 'C. 10分钟', 'D. 不限时'],
+    correct: 1,
+    explanation: '冯如杯答辩通常限制5分钟陈述+3分钟问答。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q4',
+    question: '冯如杯有效性审查主要审查什么？',
+    options: ['A. 格式规范和查重率', 'B. 创新性', 'C. 答辩表现', 'D. 导师职称'],
+    correct: 0,
+    explanation: '有效性审查重点检查材料完整性、格式规范和查重率。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q5',
+    question: '以下哪个不是冯如杯常见赛道？',
+    options: ['A. 主赛道', 'B. 创意赛道', 'C. 红旅赛道', 'D. 专项赛道'],
+    correct: 2,
+    explanation: '"红旅赛道"是互联网+大赛的赛道，不是冯如杯的。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q6',
+    question: '在冯如杯答辩中，PPT页数一般建议控制在？',
+    options: ['A. 10页', 'B. 20页', 'C. 40页', 'D. 不限'],
+    correct: 1,
+    explanation: '冯如杯答辩PPT页数一般建议控制在15-25页，20页左右为佳。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q7',
+    question: '冯如杯项目查重率一般要求低于？',
+    options: ['A. 5%', 'B. 15%', 'C. 30%', 'D. 50%'],
+    correct: 1,
+    explanation: '冯如杯通常要求查重率不超过15%。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q8',
+    question: '冯如杯竞赛通常一年举办几次？',
+    options: ['A. 1次', 'B. 2次', 'C. 3次', 'D. 不定期'],
+    correct: 0,
+    explanation: '冯如杯每年举办一届，通常在春季学期。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q9',
+    question: '北航学院路校区的新主楼是什么类型的建筑？',
+    options: ['A. 图书馆', 'B. 实验楼', 'C. 教学/办公综合楼', 'D. 体育馆'],
+    correct: 2,
+    explanation: '新主楼是北航学院路校区的教学与办公综合楼，也是冯如杯活动的主要场地。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  },
+  {
+    id: 'q10',
+    question: '冯如杯中期检查不通过的后果是？',
+    options: ['A. 直接退赛', 'B. 进入补救模式，完成度增益-30%', 'C. 自动顺延一周', 'D. 没有影响'],
+    correct: 1,
+    explanation: '中期检查不通过会进入补救模式，完成度增益减少30%，直到达标解除。',
+    buff: '回答正确！AI助手已激活，下一次行动效果×1.5倍。',
+    debuff: '回答错误。AI运行中但效率打了折扣，精力额外-5。'
+  }
+];
+
+// ===== 5. 随机事件数据（18个） =====
+const RANDOM_EVENTS = [
+  // ---- 好事（6个） ----
+  {
+    id: 'G1', type: 'good', title: '偶遇科技创新大擂台',
+    description: '你在新主楼二层大平台偶遇了科技创新大擂台的现场预演，一个学长正在展示一个和你方向极其相似的项目。你竖起耳朵偷听，灵感如泉水般涌出——这下选题方向终于确定了！',
+    condition: { location: 'xinzhu', dayRange: [1, 15] },
+    probability: 0.25,
+    effects: { creativity: 10 }
+  },
+  {
+    id: 'G2', type: 'good', title: '抢到带插座的黄金座位',
+    description: '今天运气爆棚！你抢到了新主楼二层那个带插座的黄金座位——平时这里总是被插着充电器占着。你舒服地坐下，电脑插上电源，连效率都提升了不少。',
+    condition: { location: 'xinzhu', energyBelow: 60 },
+    probability: 0.30,
+    effects: { energy: 5, completion: 5 }
+  },
+  {
+    id: 'G3', type: 'good', title: '往届作品展板启发',
+    description: '你在图书馆走廊尽头看到了往届冯如杯优秀作品展板。那个获得特等奖的项目——"基于深度学习的无人机避障系统"——让你茅塞顿开。你掏出手机拍下了整个展板。',
+    condition: { location: 'library', dayRange: [1, 20] },
+    probability: 0.25,
+    effects: { creativity: 6, standard: 8 }
+  },
+  {
+    id: 'G4', type: 'good', title: 'DeepSeek一键生成摘要',
+    description: '你把项目文档丢给DeepSeek，它居然生成了一段堪称完美的项目摘要！不仅涵盖了所有技术要点，措辞还特别学术。你感叹："这就是AI的力量啊。"节省了半天时间。',
+    condition: { location: 'dorm' },
+    probability: 0.20,
+    effects: { defense: 5, energy: 5 }
+  },
+  {
+    id: 'G5', type: 'good', title: '有效性审查培训讲座',
+    description: '沙河S4-205举办了冯如杯有效性审查培训讲座，你专程赶去参加。讲师详细解读了格式规范和查重要求，你做了满满三页笔记——这下知道了审查官的底线在哪里。',
+    condition: { dayRange: [15, 30] },
+    probability: 0.20,
+    effects: { standard: 10 }
+  },
+  {
+    id: 'G6', type: 'good', title: '导师发往届一等奖PPT模板',
+    description: '手机震动——导师在群里发了一份"冯如杯一等奖答辩PPT完整模板"。你下载下来一看，从目录到附录，规范得无可挑剔。这下答辩准备有底了。',
+    condition: { dayRange: [20, 35] },
+    probability: 0.25,
+    effects: { defense: 8, standard: 3 }
+  },
+  // ---- 坏事（6个） ----
+  {
+    id: 'B1', type: 'bad', title: '代码突然出Bug',
+    description: '你刚准备提交今天的进度，测试环境突然崩了。排查了两个小时，发现是一个低级bug——你把变量名写错了一个字母。"我是猪。"你盯着屏幕喃喃自语。',
+    condition: { location: ['xinzhu', 'shahelab'], completionAbove: 20 },
+    probability: 0.30,
+    effects: { completion: -8, energy: -10 }
+  },
+  {
+    id: 'B2', type: 'bad', title: 'PPT模板不兼容',
+    description: '你花了半天精心制作的答辩PPT，在教室的投影电脑上打开——字体全乱了，动画卡死了，图片还错位了。"这破电脑是Win7的？！"你无语凝噎，只能重做。',
+    condition: { dayRange: [25, 40], defenseAbove: 10 },
+    probability: 0.25,
+    effects: { defense: -4, standard: -6 }
+  },
+  {
+    id: 'B3', type: 'bad', title: '参考文献格式全错',
+    description: '有效性审查前夜，你逐项检查材料清单，发现参考文献的编号全乱了，页码格式也不统一，还有两章的标题层级错了。你看着满屏的红色批注，感觉血压飙升。',
+    condition: { dayRange: [25, 30] },
+    probability: 0.25,
+    effects: { standard: -10, energy: -8 }
+  },
+  {
+    id: 'B4', type: 'bad', title: '新主楼迷路',
+    description: '你从新主楼F座出来，想抄近路去食堂，结果走进了G座。拐了三个弯之后，你发现自己居然到了H座的天台。"新主楼就是个迷宫..."你掏出手机，发现导航也迷路了。',
+    condition: { location: 'xinzhu' },
+    probability: 0.20,
+    effects: { energy: -5 }
+  },
+  {
+    id: 'B5', type: 'bad', title: '连续熬夜发烧',
+    description: '你的额头烫得可以煎鸡蛋。室友摸了摸你的额头："兄弟，39度，去医院吧。"你试图爬起来写代码，但手臂软得像面条。下一秒，你就失去了意识...',
+    condition: { energyBelow: 20 },
+    probability: 0.35,
+    effects: { energy: -100 }
+  },
+  {
+    id: 'B6', type: 'bad', title: '主赛道竞争过于激烈',
+    description: '你在冯如杯群里看到今年主赛道的报名人数——比去年多了40%。"今年主赛道是地狱难度。"学长留言。你感到一阵压力，手里的咖啡都不香了。',
+    condition: { track: 'main', dayRange: [15, 35] },
+    probability: 0.30,
+    effects: { energy: -5, completion: -5 }
+  },
+  // ---- 中性/特殊（6个） ----
+  {
+    id: 'N1', type: 'neutral', title: '绿园看猫',
+    description: '一只橘猫慢悠悠地走到你脚边，蹭了蹭你的裤腿。你蹲下来挠了挠它的下巴，它发出舒服的呼噜声。"你也在准备冯如杯吗？"猫没回答，但你觉得心情好多了。',
+    condition: { location: 'lvyuan' },
+    probability: 0.30,
+    effects: { energy: 3, creativity: 2 }
+  },
+  {
+    id: 'N2', type: 'neutral', title: '航味食堂',
+    description: '你打开外卖盒——是北航食堂的经典"航味"套餐。那熟悉的味道让你想起了大一第一次吃食堂的震撼。"其实吃习惯了还行。"你夹起一筷子，表情复杂。',
+    condition: { location: ['dorm', 'lvyuan'] },
+    probability: 0.25,
+    effects: { energy: 2 }
+  },
+  {
+    id: 'N3', type: 'neutral', title: '沙河进城通勤',
+    description: '你从沙河校区坐摆渡车回学院路。车上人挤人，你抓着吊环站了40分钟。旁边两个同学在讨论冯如杯进度，你竖起耳朵偷听——"我才写了30%..."你心里平衡了一点。',
+    condition: {},
+    probability: 0.20,
+    effects: { energy: -3 }
+  },
+  {
+    id: 'N4', type: 'neutral', title: '偶遇其他参赛队',
+    description: '你在图书馆遇到了另一个参赛队伍的同学。聊了几句之后，你大概摸清了他们的项目进度——"我们代码写完了，在做PPT了。"你默默对比了一下自己的进度条...',
+    condition: { location: ['library', 'xinzhu', 'lvyuan'] },
+    probability: 0.25,
+    effects: { creativity: 3 }
+  },
+  {
+    id: 'N5', type: 'neutral', title: '电脑蓝屏丢数据',
+    description: '蓝屏！你的电脑毫无征兆地蓝屏了！重启之后，发现今天写的3个小时代码没有保存。你看着空白的文件，想砸键盘，想砸显示器，想砸这个世界。',
+    condition: { location: ['xinzhu', 'shahelab', 'dorm'] },
+    probability: 0.20,
+    effects: { completion: -5, energy: -5 }
+  },
+  {
+    id: 'N6', type: 'neutral', title: '冯如文化节',
+    description: '图书馆广场搭起了展台——冯如文化节系列活动开始了。你逛了一圈，体验了VR飞行模拟器，还领了一个冯如杯主题的帆布袋。"这袋子挺适合装材料的。"',
+    condition: { dayRange: [10, 25] },
+    probability: 0.20,
+    effects: { creativity: 5, energy: 3 }
+  }
+];
+
+// ===== 6. 六档结局数据 =====
+const ENDINGS = [
+  {
+    id: 'S', rank: 'S', title: '特等奖',
+    description: '评审组长站起来鼓掌。"这是我今年看到的最好的作品。"你的名字被写进了冯如杯特等奖名单。在新主楼报告厅的领奖台上，接过奖杯的那一刻，40天的不眠之夜全部值得了。你看着窗外的北航校园，突然有点想哭。',
+    condition: '主赛道 && (五维均>=90 || (完成度==100 && 答辩准备>=95))'
+  },
+  {
+    id: 'A', rank: 'A', title: '一等奖',
+    description: '"获得一等奖的是——"你听到自己的名字，愣了一下才站起来。一等奖！虽然不是特等奖，但这个成绩已经足够亮眼了。答辩时评委们的点头还历历在目。你发了一条朋友圈："冯如杯一等奖，40天没白熬。"瞬间99+赞。',
+    condition: '(主赛道 && 均分>=80) || (小赛道 && 均分>=85)'
+  },
+  {
+    id: 'B', rank: 'B', title: '二等奖',
+    description: '二等奖。你站在领奖台上，接过证书，心里有点复杂——"其实还能做得更好。"但转念一想，从零开始40天拿到二等奖，已经很不错了。完成度还差一点点到100，但作品基本完成了。室友发来贺电："请客吃饭！"',
+    condition: '均分>=70 && 各属性>=50'
+  },
+  {
+    id: 'C', rank: 'C', title: '三等奖/优秀奖',
+    description: '三等奖。你拿着证书走出答辩教室，长舒了一口气。虽然名次不高，但有效性审查那一关差点没过，总算挑战成功了。你完成了——从一无所知站到上讲台，这本身就是胜利。学长拍拍你的肩："明年再来，主赛道见。"',
+    condition: '均分>=60'
+  },
+  {
+    id: 'D', rank: 'D', title: '参与奖',
+    description: '参与奖。证书上印着"感谢参与"四个字。你苦笑着把它折好塞进书包。答辩的时候你明显感觉到评委兴趣不大——项目确实太粗糙了。但至少，你没有中途放弃。你看着天花板，暗暗下定决心："明年一定行。"',
+    condition: '均分>=40'
+  },
+  {
+    id: 'F', rank: 'F', title: '退赛/无效',
+    description: '你看着冯如杯系统里的状态——"未通过有效性审查，作品无效。"或者是那一次昏迷之后，你再也没有爬起来，在宿舍躺平了三天。40天的征程，到这里画上了不圆满的句号。但你心里清楚：你学到了东西，这就够了。"下次一定行。"',
+    condition: '均分<40 || 精力归零或完成度<30'
+  }
+];
+
+// ===== 7. 地点时段剧情文本（6地点 x 3时段） =====
+const STORIES = {
+  xinzhu: {
+    morning: '太阳刚刚升起，新主楼的玻璃幕墙泛着淡金色的光。二层大平台上已经有三两个同学趴在电脑前，显然是通宵了。你绕过一部正在维修的电梯，爬上了楼梯。',
+    afternoon: '新主楼二层大平台人声鼎沸，科技创新大擂台的海报映入眼帘。一个学生正在给展板接电源，你看到他的插座转换器上已经插满了三个充电器。',
+    evening: '夜幕降临，新主楼的灯火通明如昼。走廊里传来键盘敲击声和低声的讨论，有人在工位上打地铺。你找到了那个带插座的黄金座位——幸运。'
+  },
+  zhulou: {
+    morning: '主楼的早课铃声刚过，教室里三两个学生正在收拾书包。阳光从老式的木质窗框倾泻进来，在讲台上留下一片温暖的光斑。',
+    afternoon: '主楼的课间歇声不断，走廊里三五成群的同学正在讨论问题。你经过一间教室，听到里面有人在讲"飞行力学"，突然灵感一闪。',
+    evening: '夜晚的主楼安静了许多，只有几间教室亮着灯。你在楼梯口遇到了导师，他看到你的电脑屏幕，笑着说："冯如杯加油啊。"'
+  },
+  library: {
+    morning: '图书馆刚开门，空气里还残留着昨晚消毒水的味道。三楼科创文献区的书架在晨光中很安静，只有一两个人在查资料。',
+    afternoon: '图书馆的打印机嗡嗡作响，几个同学围在电脑前看往届冯如杯的获奖作品集。你经过走廊，看到墙上挂着的展板——"基于深度学习的无人机避障系统"。',
+    evening: '夜晚的图书馆进入了安静模式，灯光调暗了一些。你在查重系统前等待结果，心里默默祈祷查重率不要超标。'
+  },
+  lvyuan: {
+    morning: '清晨的绿园空气清新，露珠还挂在草叶上。几只鸟儿在树枝上跳跃，一个同学正在长椅上背单词。你深深呼吸了一口清凉的空气。',
+    afternoon: '绿园里的梧桐树下有三两个同学正在长椅上看电脑，另一个人对着笔记本练习答辩。一只橘猫躺在石椅下打呼噜。',
+    evening: '夜幕下的绿园静谧而温柔，路灯投下淡淡的光。你坐在长椅上，听着树叶的沙沙声，紧绷的神经终于放松了一些。'
+  },
+  shahelab: {
+    morning: '沙河实验楼的早晨有一股清冷的机油味，空荡荡的走廊里只有你的脚步声。风洞实验室的门缝里传出低沉的轰鸣，像是某个巨兽在呼吸。',
+    afternoon: '实验楼里热闹起来，几组同学围着示波器和电路板忙碌。空气中漂浮着淡淡的3D打印耗材味道，墙上的时钟显示下午三点。',
+    evening: '晚上十点，沙河实验楼依然灯火通明。你看着示波器上跳动的波形，手里的电路板还在散发着浅浅的热量。'
+  },
+  dorm: {
+    morning: '宿舍的晨光懒散地投进来，室友还在被窝里缩着。书桌上的咖啡已经凉透了，泡面碗里的汤也干了。你挣扎着是再睡一会还是起床干活。',
+    afternoon: '室友正在打游戏，键盘声和欢呼声不断。你瘫在椅子上，盯着天花板发呆——是睡个午觉还是用DeepSeek赶进度？',
+    evening: '夜深了，室友已经入睡，只有你的电脑屏幕还亮着。桌上的咖啡杯已经空了，但你还在和代码死磕。'
+  }
+};
+
+
+// ===== 音效系统（Web Audio API） =====
+const AudioSys = {
+  ctx: null, enabled: true,
+  /** 初始化音频上下文 */
+  init() { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.enabled = false; } },
+  /** 播放提示音 */
+  playTone(freq, duration, type) {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type || 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+      osc.connect(gain); gain.connect(this.ctx.destination);
+      osc.start(); osc.stop(this.ctx.currentTime + duration);
+    } catch (e) {}
+  },
+  /** 成功提示音 */
+  success() { this.playTone(523, 0.15); setTimeout(() => this.playTone(659, 0.2), 80); },
+  /** 错误提示音 */
+  error() { this.playTone(200, 0.3, 'sawtooth'); },
+  /** 事件触发音 */
+  event() { this.playTone(440, 0.1); setTimeout(() => this.playTone(554, 0.15), 60); },
+  /** 存档提示音 */
+  save() { this.playTone(880, 0.1); setTimeout(() => this.playTone(1100, 0.15), 50); },
+  /** 成就解锁音 */
+  achievement() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.playTone(f, 0.2), i * 80)); }
+};
+
+// ===== 成就系统 =====
+const ACHIEVEMENTS = [
+  { id: 'xinzhu_regular', name: '新主楼常客', desc: '连续3天去新主楼', icon: '🏢', check: (p, h) => h.filter(x => x.loc === 'xinzhu').length >= 3 },
+  { id: 'night_owl', name: '夜猫子', desc: '连续熬夜2天（精力<30还工作）', icon: '🦉', check: (p, h) => h.filter(x => x.energyLow).length >= 2 },
+  { id: 'ai_master', name: 'AI达人', desc: '使用AI辅助5次', icon: '🤖', check: (p, h) => h.filter(x => x.usedAI).length >= 5 },
+  { id: 'cat_lover', name: '铲屎官', desc: '在绿园撸猫3次', icon: '🐱', check: (p, h) => h.filter(x => x.action === '撸猫').length >= 3 },
+  { id: 'shahe_traveler', name: '沙河通勤王', desc: '去沙河校区5次', icon: '🚌', check: (p, h) => h.filter(x => x.campus === 'shahe').length >= 5 },
+  { id: 'perfect_start', name: '完美开局', desc: '开题时创新+完成均值≥70', icon: '✨', check: (p, h) => p.day >= 6 && (p.creativity + p.completion) / 2 >= 70 },
+  { id: 'sleepyhead', name: '睡神', desc: '累计睡觉10次', icon: '😴', check: (p, h) => h.filter(x => x.action === '睡觉').length >= 10 },
+  { id: 'overnight_hero', name: '肝帝', desc: '通宵加班3次', icon: '🔥', check: (p, h) => h.filter(x => x.action && x.action.includes('通宵')).length >= 3 }
+];
+
+const AchievementSys = {
+  unlocked: new Set(),
+  /** 检查并解锁成就，返回新解锁列表 */
+  check() {
+    const newly = [];
+    ACHIEVEMENTS.forEach(a => {
+      if (this.unlocked.has(a.id)) return;
+      if (a.check(player, actionHistory)) { this.unlocked.add(a.id); newly.push(a); }
+    });
+    return newly;
+  }
+};
+
+// ===== 8. 游戏状态对象 =====
+let player = {};
+let gameState = { state: 'MENU', forcedAction: null, currentQuiz: null, nextActionMultiplier: 1 };
+let typewriterTimer = null;
+let usedOneTimeActions = new Set();
+let eventHistory = [];
+let actionHistory = [];
+
+// ===== 9. 游戏引擎核心 =====
+const game = {
+  // FIX-BUG-1: 防止重复调用 nextDay 和行动连点
+  _isProcessing: false,
+  // --- 初始化与导航 ---
+  init() {
+    // FIX-BUG-15: 音效在用户首次交互后初始化（解决浏览器自动播放限制）
+    const initAudio = () => { AudioSys.init(); document.removeEventListener('click', initAudio); };
+    document.addEventListener('click', initAudio);
+    const hasSave = localStorage.getItem(CONFIG.SAVE_KEY);
+    if (hasSave) document.getElementById('btn-continue').style.display = 'block';
+    this.toMenu();
+  },
+
+  toMenu() {
+    this.switchScreen('menu-screen');
+    gameState.state = 'MENU';
+    // FIX-BUG-9: 根据存档状态更新"继续游戏"按钮
+    const hasSave = localStorage.getItem(CONFIG.SAVE_KEY);
+    document.getElementById('btn-continue').style.display = hasSave ? 'block' : 'none';
+  },
+  toTrackSelect() { this.switchScreen('track-screen'); gameState.state = 'TRACK_SELECT'; },
+  toGame() { this.switchScreen('game-screen'); gameState.state = 'PLAYING'; },
+
+  switchScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    // FIX-BUG-14: 浮动按钮和音效开关只在游戏画面显示
+    const floatEl = document.getElementById('float-controls');
+    if (floatEl) floatEl.style.display = (id === 'game-screen') ? 'flex' : 'none';
+    const sndEl = document.getElementById('sound-toggle');
+    if (sndEl) sndEl.style.display = (id === 'game-screen') ? 'flex' : 'none';
+  },
+
+  // --- 赛道选择 ---
+  selectTrack(track) {
+    player = {
+      day: 1, track: track, location: 'dorm',
+      energy: 100, creativity: 10, completion: 0, defense: 0, standard: 0,
+      hasArenaBuff: false
+    };
+    gameState = { state: 'PLAYING', forcedAction: null, currentQuiz: null, nextActionMultiplier: 1 };
+    usedOneTimeActions.clear();
+    eventHistory = [];
+    actionHistory = [];
+    this.toGame();
+    AchievementSys.unlocked.clear();
+    this.renderAll();
+    this.typewrite('第1天，你选择了' + (track === 'main' ? '主赛道' : '小赛道') + '。冯如杯的40天征程正式开始！你坐在宿舍的椅子上，看着桌上散落的资料，深吸了一口气。"干就完了。"', () => {
+      this.renderActions();
+    });
+    this.saveGame();
+  },
+
+  // --- 获取当前阶段 ---
+  // FIX-BUG-6: 使用 PHASES_DATA（7项含开题/中期/审查），按 startDay/endDay 精确匹配
+  getCurrentPhase() {
+    const day = player.day;
+    for (const p of PHASES_DATA) {
+      if (day >= p.startDay && day <= p.endDay) return p;
+    }
+    return PHASES_DATA[PHASES_DATA.length - 1];
+  },
+
+  // --- 获取地点对象 ---
+  getLocation(locId) { return LOCATIONS.find(l => l.id === locId); },
+
+  // --- 获取时段文本 ---
+  getTimeOfDay() {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
+  },
+
+  // --- 渲染全套UI ---
+  renderAll() {
+    this.renderStatus();
+    this.renderPhaseIndicator();
+    this.renderLocation();
+    this.renderLocationBar();
+    this.renderActions();
+    this.renderBuff();
+    this.renderCountdown();
+    this.renderHistory();
+    this.checkAchievements();
+  },
+
+  // --- 顶部阶段指示器 ---
+  renderPhaseIndicator() {
+    const phase = this.getCurrentPhase();
+    document.getElementById('day-display').textContent = `第${player.day}天 / ${CONFIG.TOTAL_DAYS}天`;
+    const tag = document.getElementById('phase-tag');
+    tag.textContent = phase.name;
+    tag.style.background = phase.color || '#4299E1';
+    document.getElementById('location-display').textContent = '\u{1F4CD} ' + this.getLocation(player.location).name;
+  },
+
+  // --- 五维属性进度条 ---
+  renderStatus() {
+    const attrs = [
+      { key: 'energy', label: '精力', val: player.energy },
+      { key: 'creativity', label: '创新能力', val: player.creativity },
+      { key: 'completion', label: '完成度', val: player.completion },
+      { key: 'defense', label: '答辩准备', val: player.defense },
+      { key: 'standard', label: '规范度', val: player.standard }
+    ];
+    attrs.forEach(a => {
+      const pct = Math.min(100, Math.max(0, a.val));
+      document.getElementById(`val-${a.key}`).textContent = Math.round(a.val);
+      const bar = document.getElementById(`bar-${a.key}`);
+      bar.style.width = pct + '%';
+      bar.textContent = Math.round(pct) + '%';
+    });
+    document.getElementById('track-badge').textContent = player.track === 'main' ? '主赛道 \u{2B50}\u{2B50}\u{2B50}\u{2B50}\u{2B50}' : '小赛道 \u{2B50}\u{2B50}\u{2B50}';
+  },
+
+  // --- 地点氛围与背景色 ---
+  renderLocation() {
+    const loc = this.getLocation(player.location);
+    const area = document.getElementById('story-area');
+    area.className = loc.className;
+  },
+
+  // --- 地点选择栏 ---
+  renderLocationBar() {
+    const bar = document.getElementById('location-bar');
+    bar.innerHTML = '';
+    LOCATIONS.forEach(loc => {
+      const btn = document.createElement('button');
+      const cost = this.getCommuteCost(player.location, loc.id);
+      // FIX-BUG-12: 在按钮上显示通勤成本
+      const costLabel = cost > 0 ? `(-${cost}精力)` : '';
+      btn.className = 'loc-btn' + (loc.id === player.location ? ' active' : '');
+      btn.textContent = loc.name + costLabel;
+      btn.onclick = () => this.selectLocation(loc.id);
+      if (loc.id !== player.location) {
+        if (player.energy < cost) {
+          btn.disabled = true;
+          btn.title = `精力不足（需${cost}点）`;
+        }
+      }
+      bar.appendChild(btn);
+    });
+  },
+
+  // --- 计算跨校区通勤消耗 ---
+  getCommuteCost(fromId, toId) {
+    const from = this.getLocation(fromId);
+    const to = this.getLocation(toId);
+    if (from.campus === to.campus || from.campus === 'universal' || to.campus === 'universal') return 0;
+    return CONFIG.CROSS_CAMPUS_COST;
+  },
+
+  // --- 选择地点 ---
+  selectLocation(locId) {
+    if (locId === player.location) return;
+    const cost = this.getCommuteCost(player.location, locId);
+    if (player.energy < cost) {
+      this.showToast('精力不足以移动到该地点！', 'error');
+      return;
+    }
+    if (cost > 0) {
+      player.energy = Math.max(0, player.energy - cost);
+      this.showToast(`跨校区通勤，精力-${cost}`, 'info');
+    }
+    player.location = locId;
+    const loc = this.getLocation(locId);
+    this.renderAll();
+    const timeKey = this.getTimeOfDay();
+    const storyText = STORIES[locId] && STORIES[locId][timeKey] ? STORIES[locId][timeKey] : loc.desc;
+    this.typewrite(storyText + '\n\n你来到了' + loc.name + '。今天想做什么？');
+    this.saveGame();
+  },
+
+  // --- 渲染行动按钮 ---
+  renderActions() {
+    const container = document.getElementById('action-buttons');
+    container.innerHTML = '';
+    const loc = this.getLocation(player.location);
+
+    // FIX-BUG-3: 补材料期间只显示"继续补材料"按钮
+    if (gameState.forcedAction && gameState.forcedAction.type === 'material_fix') {
+      const btn = document.createElement('button');
+      btn.className = 'action-btn ripple';
+      btn.innerHTML = `<span class="act-name">继续补材料</span><span class="act-effect">规范度+8 精力-10（自动）</span>`;
+      btn.onclick = () => { this.showToast('正在补材料中，请等待下一天...', 'info'); };
+      container.appendChild(btn);
+      this.renderLocationBar();
+      return;
+    }
+
+    loc.actions.forEach(act => {
+      const uid = loc.id + '_' + act.id;
+      // FIX-BUG-10: 已使用的一次性行动显示为禁用状态，而非直接消失
+      if (act.oneTime && usedOneTimeActions.has(uid)) {
+        const btn = document.createElement('button');
+        btn.className = 'action-btn';
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.innerHTML = `<span class="act-name" style="color:#aaa;text-decoration:line-through;">${act.name}（已完成）</span><span class="act-effect" style="color:#ccc;">${act.desc}</span>`;
+        container.appendChild(btn);
+        return;
+      }
+      if (act.req && act.req.energyBelow && player.energy > act.req.energyBelow) return;
+
+      const btn = document.createElement('button');
+      // FIX-BUG-13: 涟漪效果应用到行动按钮
+      btn.className = 'action-btn ripple';
+      btn.innerHTML = `
+        <span class="act-name">${act.name}</span>
+        <span class="act-effect">${act.desc}</span>
+        ${act.oneTime ? '<span class="act-once">限1次</span>' : ''}
+      `;
+      btn.onclick = () => this.doAction(act);
+      container.appendChild(btn);
+    });
+    this.renderLocationBar();
+  },
+
+  // --- 执行行动 ---
+  doAction(action) {
+    // FIX-BUG-1: 防止行动连点和重复调用 nextDay
+    if (this._isProcessing) return;
+    this._isProcessing = true;
+
+    if (action.isQuiz) {
+      this.showQuizModal(action);
+      return;
+    }
+
+    const mult = gameState.nextActionMultiplier;
+    let trackMult = player.track === 'main' ? 0.9 : 1.1;
+    const effects = { ...action.effects };
+
+    // FIX-BUG-2: 中期补救模式减少完成度增益
+    if (gameState.remedialPenalty && effects.completion) {
+      effects.completion = Math.round(effects.completion * gameState.remedialPenalty);
+    }
+
+    if (effects.completion) effects.completion *= trackMult;
+    if (effects.completion) effects.completion = Math.round(effects.completion * mult);
+    if (effects.creativity) effects.creativity = Math.round(effects.creativity * mult);
+    if (effects.standard) effects.standard = Math.round(effects.standard * mult);
+
+    // FIX-BUG-7: 大擂台buff设置
+    if (action.id === 'arena') player.hasArenaBuff = true;
+
+    this.applyEffects(effects);
+
+    const uid = player.location + '_' + action.id;
+    if (action.oneTime) usedOneTimeActions.add(uid);
+
+    if (action.risk && Math.random() < action.risk) {
+      this.showModal('bad', '你因为过度劳累发起了高烧！下一天强制住院休息。', () => {
+        gameState.forcedAction = { type: 'hospital', remainingDays: 1 };
+        this._isProcessing = false;
+        this.nextDay();
+      }, null, null, false);
+      return;
+    }
+
+    actionHistory.push({ day: player.day, action: action.name, effects, loc: player.location,
+          energyLow: player.energy < 30, usedAI: !!action.isQuiz,
+          campus: (LOCATIONS.find(l => l.id === player.location) || {}).campus });
+
+    let feedback = `你选择了"${action.name}"。`;
+    if (mult > 1) feedback += '\n（AI辅助buff生效中，效果×' + mult + '）';
+    this.typewrite(feedback);
+
+    gameState.nextActionMultiplier = 1;
+
+    if (player.energy <= 0) {
+      this.showModal('bad', '你的精力耗尽，昏倒了！下一天强制住院。', () => {
+        gameState.forcedAction = { type: 'hospital', remainingDays: 1 };
+        this._isProcessing = false;
+        this.nextDay();
+      }, null, null, false);
+      return;
+    }
+
+    // FIX-BUG-11: 行动后显示"今天结束"反馈
+    this.renderAll();
+    this.saveGame();
+    this.showToast(`第${player.day}天结束了，正在进入第${player.day + 1}天...`, 'info');
+    setTimeout(() => {
+      this._isProcessing = false;
+      this.nextDay();
+    }, 800);
+  },
+
+  // --- 应用属性变化 ---
+  applyEffects(effects) {
+    // FIX-BUG-8: 所有属性变化后统一 Math.round()，防止出现 87.3 精力
+    if (effects.energy) player.energy = Math.round(Math.min(CONFIG.ENERGY_MAX, Math.max(0, player.energy + effects.energy)));
+    if (effects.creativity) player.creativity = Math.round(Math.min(100, Math.max(0, player.creativity + effects.creativity)));
+    if (effects.completion) player.completion = Math.round(Math.min(100, Math.max(0, player.completion + effects.completion)));
+    if (effects.defense) player.defense = Math.round(Math.min(100, Math.max(0, player.defense + effects.defense)));
+    if (effects.standard) player.standard = Math.round(Math.min(100, Math.max(0, player.standard + effects.standard)));
+    this.renderStatus();
+  },
+
+  // --- 答题弹窗（改版：答题后关闭弹窗，结果以HTML输出到剧情区） ---
+  showQuizModal(action) {
+    const quiz = QUIZZES[Math.floor(Math.random() * QUIZZES.length)];
+    gameState.currentQuiz = { quiz, action };
+    this.quizSelectedIndex = -1;
+
+    const header = document.getElementById('modal-header');
+    const body = document.getElementById('modal-body');
+    const footer = document.getElementById('modal-footer');
+
+    header.style.background = 'var(--beihang-blue)';
+    header.textContent = '\u{1F916} AI辅助答题';
+    body.innerHTML = `
+      <p style="margin-bottom:12px;">使用AI工具前，先回答一道科创知识题：</p>
+      <p style="font-weight:700;margin-bottom:16px;">${quiz.question}</p>
+      <div class="quiz-options" id="quiz-options">
+        ${quiz.options.map((opt, i) => `<button class="quiz-option" onclick="game.selectQuizAnswer(${i})">${opt}</button>`).join('')}
+      </div>
+    `;
+    footer.innerHTML = '<button class="modal-btn" style="background:#718096;" onclick="game.closeModal();game.executeQuizAction(false);">放弃</button>';
+
+    document.getElementById('modal-overlay').classList.add('show');
+  },
+
+  quizSelectedIndex: -1,
+  selectQuizAnswer(index) {
+    this.quizSelectedIndex = index;
+    document.querySelectorAll('.quiz-option').forEach((btn, i) => {
+      btn.classList.toggle('selected', i === index);
+    });
+    this.submitQuiz();
+  },
+
+  submitQuiz() {
+    if (this.quizSelectedIndex < 0) return;
+    const { quiz, action } = gameState.currentQuiz;
+    const correct = this.quizSelectedIndex === quiz.correct;
+
+    // 关闭弹窗
+    this.closeModal();
+
+    // 以HTML格式输出结果到剧情区
+    const resultHTML = correct
+      ? `<div style="color:var(--success);font-weight:700;font-size:18px;margin-bottom:8px;">\u2705 回答正确！</div><div style="color:var(--text-secondary);">${quiz.buff}</div><div style="margin-top:8px;color:var(--text-primary);">DeepSeek已启动加速，本次行动效果 \u00d7 1.5倍！</div>`
+      : `<div style="color:var(--danger);font-weight:700;font-size:18px;margin-bottom:8px;">\u274C 回答错误</div><div style="color:var(--text-secondary);">${quiz.debuff}</div><div style="margin-top:8px;color:var(--text-primary);">AI仍在运行，但效率打了折扣。</div>`;
+
+    document.getElementById('story-text').innerHTML = resultHTML;
+
+    // 执行后续行动
+    this.executeQuizAction(correct);
+  },
+
+  executeQuizAction(correct) {
+    const act = gameState.currentQuiz?.action;
+    if (!act) return;
+
+    if (correct) {
+      gameState.nextActionMultiplier = 1.5;
+      AudioSys.success();
+    } else {
+      player.energy = Math.max(0, Math.round(player.energy - 5));
+      gameState.nextActionMultiplier = 1;
+      AudioSys.error();
+    }
+    this.renderStatus();
+
+    // 继续执行行动（模拟 doAction 中 isQuiz 之后的内容）
+    this._isProcessing = true;
+    const mult = gameState.nextActionMultiplier;
+    let trackMult = player.track === 'main' ? 0.9 : 1.1;
+    const effects = { ...act.effects };
+
+    if (gameState.remedialPenalty && effects.completion) {
+      effects.completion = Math.round(effects.completion * gameState.remedialPenalty);
+    }
+    if (effects.completion) effects.completion *= trackMult;
+    if (effects.completion) effects.completion = Math.round(effects.completion * mult);
+    if (effects.creativity) effects.creativity = Math.round(effects.creativity * mult);
+    if (effects.standard) effects.standard = Math.round(effects.standard * mult);
+
+    if (act.id === 'arena') player.hasArenaBuff = true;
+
+    this.applyEffects(effects);
+
+    const uid = player.location + '_' + act.id;
+    if (act.oneTime) usedOneTimeActions.add(uid);
+
+    // 风险事件
+    if (act.risk && Math.random() < act.risk) {
+      this.showModal('bad', '你因为过度劳累发起了高烧！下一天强制住院休息。', () => {
+        gameState.forcedAction = { type: 'hospital', remainingDays: 1 };
+        this._isProcessing = false;
+        this.nextDay();
+      }, null, null, false);
+      return;
+    }
+
+    actionHistory.push({ day: player.day, action: act.name, effects, loc: player.location,
+          energyLow: player.energy < 30, usedAI: true,
+          campus: (LOCATIONS.find(l => l.id === player.location) || {}).campus });
+
+    gameState.nextActionMultiplier = 1;
+
+    if (player.energy <= 0) {
+      this.showModal('bad', '你的精力耗尽，昏倒了！下一天强制住院。', () => {
+        gameState.forcedAction = { type: 'hospital', remainingDays: 1 };
+        this._isProcessing = false;
+        this.nextDay();
+      }, null, null, false);
+      return;
+    }
+
+    this.renderAll();
+    this.saveGame();
+    this.showToast(`\u7b2c${player.day}\u5929\u7ed3\u675f\u4e86\uff0c\u6b63\u5728\u8fdb\u5165\u7b2c${player.day + 1}\u5929...`, 'info');
+    setTimeout(() => {
+      this._isProcessing = false;
+      this.nextDay();
+    }, 800);
+  },
+
+  // --- 进入下一天 ---
+  nextDay() {
+    // FIX-BUG-1: nextDay 每轮只能进一次
+    if (this._isProcessing) return;
+    this._isProcessing = true;
+
+    // FIX-BUG-2/3: 强制状态处理（住院/补救/补材料）
+    if (gameState.forcedAction) {
+      const fa = gameState.forcedAction;
+      if (fa.type === 'hospital') {
+        player.energy = Math.min(CONFIG.ENERGY_MAX, Math.round(80));
+        this.typewrite('你在校医院躺了一整天，精力恢复到80。这一天什么都没有做成，但至少你活过来了。');
+        fa.remainingDays--;
+        if (fa.remainingDays <= 0) gameState.forcedAction = null;
+      } else if (fa.type === 'remedial') {
+        // FIX-BUG-2: 补救模式 - 每天显示提示
+        const remedialDay = 999 - fa.remainingDays + 1;
+        this.typewrite(`【补救模式 第${remedialDay}天】你的进度严重滞后，评审组要求你加倍努力。今天完成度增益减少30%，当前完成度：${Math.round(player.completion)}/75。`);
+        fa.remainingDays--;
+        if (player.completion >= 75) {
+          gameState.forcedAction = null;
+          gameState.remedialPenalty = null;
+          this.showToast('补救成功！完成度达标，解除限制。', 'success');
+        }
+      } else if (fa.type === 'material_fix') {
+        // FIX-BUG-3: 补材料模式 - 每天自动补材料
+        const fixDay = 3 - fa.remainingDays + 1;
+        player.standard = Math.min(100, Math.round(player.standard + 8));
+        player.energy = Math.max(0, Math.round(player.energy - 10));
+        this.typewrite(`【补材料 第${fixDay}/3天】你埋头整理参考文献格式、核对材料清单。规范度+8，精力-10。当前规范度：${Math.round(player.standard)}。`);
+        fa.remainingDays--;
+        if (fa.remainingDays <= 0) {
+          gameState.forcedAction = null;
+          this.showToast('补材料完成！材料已重新提交。', 'success');
+        }
+      }
+      this.renderAll();
+      this.saveGame();
+      this._isProcessing = false;
+      if (player.day >= CONFIG.TOTAL_DAYS) { this.checkEnding(); return; }
+      return;
+    }
+
+    player.day++;
+    if (player.day > CONFIG.TOTAL_DAYS) {
+      this.checkEnding();
+      return;
+    }
+
+    if (CONFIG.CHECKPOINT_DAYS.includes(player.day)) {
+      this.checkCheckpoint(player.day);
+      return;
+    }
+
+    this.checkRandomEvent();
+    this.renderAll();
+    this.saveGame();
+    this._isProcessing = false;
+  },
+
+  // --- 流程节点检查 ---
+  // FIX: 所有 checkpoint 弹窗回调中释放锁并继续推进游戏
+  checkCheckpoint(day) {
+    if (day === 6) {
+      const avg = (player.creativity + player.completion) / 2;
+      const passed = avg >= 50;
+      const title = passed ? '开题通过' : '开题被驳回';
+      const text = passed
+        ? '评审老师认为你的选题有一定创新性，准予开题。你可以进入正式的研发阶段了！\n\n创新能力+3'
+        : '评审意见：选题不够明确，技术路线不清晰。你需要重新选题，5天后再次开题检查。\n\n创新能力-5，精力-10';
+      const color = passed ? 'var(--success)' : 'var(--danger)';
+      const effects = passed ? { creativity: 3 } : { creativity: -5, energy: -10 };
+
+      this.showModal('checkpoint', text, () => {
+        this.applyEffects(effects);
+        if (!passed) {
+          player.day = 1;
+          this.showToast('时间惩罚：退回第1天', 'error');
+        }
+        this._checkpointResume();
+      }, title, color, false);
+      return;
+    }
+
+    if (day === 20) {
+      const passed = player.completion >= 75;
+      const title = passed ? '中期检查通过' : '中期警告！进入补救模式';
+      const text = passed
+        ? '评审组对你的进度表示满意。"继续保持这个节奏，有望冲击奖项。"\n\n精力+10，答辩准备+5'
+        : '评审组认为你的进度严重滞后。从明天起，你每天只能进行低效的研发行动（完成度增益-30%），直到完成度达到75。\n\n精力-15';
+      const color = passed ? 'var(--success)' : 'var(--warning)';
+      const effects = passed ? { energy: 10, defense: 5 } : { energy: -15 };
+      if (!passed) {
+        gameState.forcedAction = { type: 'remedial', remainingDays: 999 };
+        gameState.remedialPenalty = 0.7;
+      }
+
+      this.showModal('checkpoint', text, () => {
+        this.applyEffects(effects);
+        this._checkpointResume();
+      }, title, color, false);
+      return;
+    }
+
+    if (day === 30) {
+      const threshold = player.track === 'main' ? 75 : 70;
+      const passed = player.standard >= threshold;
+      const title = passed ? '有效性审查通过' : '材料被打回！';
+      const text = passed
+        ? '材料齐全，格式规范，查重率达标。你的作品正式进入答辩环节！接下来10天，全力准备答辩吧。\n\n答辩准备+10，精力+10'
+        : `审查意见：材料格式不规范，查重率略超警戒线。你必须花3天时间专门补材料。\n\n规范度要求：${threshold}，当前：${Math.round(player.standard)}\n\n精力-20`;
+      const color = passed ? 'var(--success)' : 'var(--danger)';
+      const effects = passed ? { defense: 10, energy: 10 } : { energy: -20 };
+      if (!passed) gameState.forcedAction = { type: 'material_fix', remainingDays: 3 };
+
+      this.showModal('checkpoint', text, () => {
+        this.applyEffects(effects);
+        this._checkpointResume();
+      }, title, color, false);
+      return;
+    }
+
+    if (day === 40) {
+      this._isProcessing = false;
+      this.checkEnding();
+    }
+  },
+
+  // FIX: checkpoint 弹窗关闭后继续推进游戏（检查随机事件 + 渲染）
+  _checkpointResume() {
+    this.renderAll();
+    this.saveGame();
+    this.checkRandomEvent();
+    this._isProcessing = false;
+  },
+
+  // --- 随机事件判定 ---
+  checkRandomEvent() {
+    if (CONFIG.CHECKPOINT_DAYS.includes(player.day)) return;
+    if (gameState.forcedAction) return;
+
+    let chance = 0.30;
+    if (player.track === 'main') chance += 0.05;
+    if (player.energy < 30) chance += 0.10;
+
+    if (Math.random() < chance) {
+      let pool = RANDOM_EVENTS.filter(e => {
+        if (eventHistory.includes(e.id)) return false;
+        const cond = e.condition || {};
+        if (cond.track && cond.track !== player.track) return false;
+        if (cond.energyBelow && player.energy > cond.energyBelow) return false;
+        if (cond.dayRange && (player.day < cond.dayRange[0] || player.day > cond.dayRange[1])) return false;
+        if (cond.location) {
+          const locs = Array.isArray(cond.location) ? cond.location : [cond.location];
+          if (!locs.includes(player.location)) return false;
+        }
+        if (cond.completionAbove && player.completion < cond.completionAbove) return false;
+        if (cond.defenseAbove && player.defense < cond.defenseAbove) return false;
+        return true;
+      });
+      if (pool.length === 0) { eventHistory = []; pool = RANDOM_EVENTS; }
+
+      let goodPool = pool.filter(e => e.type === 'good');
+      let badPool = pool.filter(e => e.type === 'bad');
+      let neutralPool = pool.filter(e => e.type === 'neutral');
+
+      let weights = [0.35, 0.35, 0.30];
+      if (player.track === 'main') { weights = [0.25, 0.45, 0.30]; }
+      else { weights = [0.40, 0.25, 0.35]; }
+      if (player.energy < 30) { weights[0] -= 0.05; weights[1] += 0.05; }
+
+      const rand = Math.random();
+      let event;
+      if (rand < weights[0] && goodPool.length) event = goodPool[Math.floor(Math.random() * goodPool.length)];
+      else if (rand < weights[0] + weights[1] && badPool.length) event = badPool[Math.floor(Math.random() * badPool.length)];
+      else event = (neutralPool.length ? neutralPool : pool)[Math.floor(Math.random() * (neutralPool.length || pool.length))];
+
+      if (event) {
+        eventHistory.push(event.id);
+        AudioSys.event();
+        const color = event.type === 'good' ? 'var(--success)' : event.type === 'bad' ? 'var(--danger)' : 'var(--text-secondary)';
+        this.showModal(event.type, `${event.description}\n\n效果：${this.formatEffects(event.effects)}`, () => {
+          this.applyEffects(event.effects);
+          this.renderAll();
+          this.saveGame();
+        }, `\u{1F3B2} 随机事件：${event.title}`, color);
+      }
+    }
+  },
+
+  formatEffects(effects) {
+    const parts = [];
+    if (effects.energy) parts.push(`精力${effects.energy > 0 ? '+' : ''}${effects.energy}`);
+    if (effects.creativity) parts.push(`创新${effects.creativity > 0 ? '+' : ''}${effects.creativity}`);
+    if (effects.completion) parts.push(`完成${effects.completion > 0 ? '+' : ''}${effects.completion}`);
+    if (effects.defense) parts.push(`答辩${effects.defense > 0 ? '+' : ''}${effects.defense}`);
+    if (effects.standard) parts.push(`规范${effects.standard > 0 ? '+' : ''}${effects.standard}`);
+    return parts.join('\u{FF0C}') || '无';
+  },
+
+  // --- 结局判定 ---
+  checkEnding() {
+    const weights = { creativity: 0.25, completion: 0.30, defense: 0.25, standard: 0.15, energy: 0.05 };
+    let score = 0;
+    score += player.creativity * weights.creativity;
+    score += player.completion * weights.completion;
+    score += player.defense * weights.defense;
+    score += player.standard * weights.standard;
+    if (player.energy > 50) score += 5;
+    else if (player.energy >= 30) score += 5 * (player.energy / 50);
+    else score -= 5;
+    if (player.hasArenaBuff) score += 3;
+    if (player.track === 'small') score += 2;
+    score = Math.round(score);
+
+    let ending = ENDINGS[ENDINGS.length - 1];
+    for (const e of ENDINGS) {
+      if (e.id === 'S' && player.track === 'main' && ((player.creativity >= 90 && player.completion >= 90 && player.defense >= 90 && player.standard >= 90 && player.energy >= 90) || (player.completion >= 99 && player.defense >= 95))) {
+        ending = e; break;
+      }
+      if (e.id === 'A' && ((player.track === 'main' && score >= 80) || (player.track === 'small' && score >= 85))) {
+        ending = e; break;
+      }
+      if (e.id === 'B' && score >= 70 && player.creativity >= 50 && player.completion >= 50 && player.defense >= 50 && player.standard >= 50) {
+        ending = e; break;
+      }
+      if (e.id === 'C' && score >= 60) { ending = e; break; }
+      if (e.id === 'D' && score >= 40) { ending = e; break; }
+    }
+
+    const detail = `
+      <div class="score-display">
+        <div class="score-number">${score}分</div>
+        <div class="score-stars">${'\u{2B50}'.repeat(ending.id === 'S' ? 5 : ending.id === 'A' ? 4 : ending.id === 'B' ? 3 : ending.id === 'C' ? 2 : ending.id === 'D' ? 1 : 0)}${'\u{2606}'.repeat(5 - (ending.id === 'S' ? 5 : ending.id === 'A' ? 4 : ending.id === 'B' ? 3 : ending.id === 'C' ? 2 : ending.id === 'D' ? 1 : 0))}</div>
+        <div class="score-detail">
+          <div class="row"><span>创新能力 \u00D725%</span><span>${(player.creativity * 0.25).toFixed(1)}</span></div>
+          <div class="row"><span>完成度 \u00D730%</span><span>${(player.completion * 0.30).toFixed(1)}</span></div>
+          <div class="row"><span>答辩准备 \u00D725%</span><span>${(player.defense * 0.25).toFixed(1)}</span></div>
+          <div class="row"><span>规范度 \u00D715%</span><span>${(player.standard * 0.15).toFixed(1)}</span></div>
+          <div class="row"><span>精力状态 \u00D75%</span><span>${(player.energy > 50 ? 5 : player.energy >= 30 ? 5 * (player.energy / 50) : -5).toFixed(1)}</span></div>
+          ${player.hasArenaBuff ? '<div class="row"><span>大擂台加分</span><span>+3</span></div>' : ''}
+          ${player.track === 'small' ? '<div class="row"><span>小赛道加成</span><span>+2</span></div>' : ''}
+        </div>
+      </div>
+    `;
+
+    this.showModal('ending', `${ending.description}\n${detail}`, () => {
+      localStorage.removeItem(CONFIG.SAVE_KEY);
+      this.toMenu();
+    }, `\u{1F3C6} 游戏结束 \u2014 结局：${ending.id}（${ending.title}）`, ending.id === 'S' ? '#D4AF37' : ending.id === 'A' ? '#E53E3E' : ending.id === 'B' ? '#3182CE' : ending.id === 'C' ? '#38A169' : ending.id === 'D' ? '#718096' : '#1A202C');
+  },
+
+  // --- 通用弹窗系统 ---
+  // FIX-BUG-5: 增加 allowOutsideClose 参数，关键弹窗禁止外部点击关闭
+  showModal(type, content, onConfirm, title, color, allowOutsideClose) {
+    allowOutsideClose = allowOutsideClose !== false;
+    const header = document.getElementById('modal-header');
+    const body = document.getElementById('modal-body');
+    const footer = document.getElementById('modal-footer');
+
+    const headerText = title || (type === 'good' ? '\u{2728} 好事发生' : type === 'bad' ? '\u{26A0}\u{FE0F} 坏事发生' : type === 'checkpoint' ? '\u{1F4CB} 流程节点' : type === 'ending' ? '\u{1F3C6} 游戏结束' : '\u{1F3B2} 事件');
+    const headerColor = color || (type === 'good' ? 'var(--success)' : type === 'bad' ? 'var(--danger)' : type === 'checkpoint' ? 'var(--warning)' : type === 'ending' ? 'var(--beihang-blue)' : 'var(--info)');
+
+    header.style.background = headerColor;
+    header.textContent = headerText;
+    body.innerHTML = content.replace(/\n/g, '<br>');
+    footer.innerHTML = `<button class="modal-btn" style="background:${headerColor};" onclick="game._modalConfirm()">${type === 'ending' ? '再玩一次' : '确定'}</button>`;
+
+    this._modalCallback = onConfirm;
+    this._modalAllowOutside = allowOutsideClose;
+    document.getElementById('modal-overlay').classList.add('show');
+  },
+
+  _modalCallback: null,
+  _modalConfirm() {
+    this.closeModal();
+    if (this._modalCallback) this._modalCallback();
+  },
+
+  closeModal() {
+    document.getElementById('modal-overlay').classList.remove('show');
+  },
+
+  // --- 打字机效果 ---
+  typewrite(text, onComplete) {
+    const el = document.getElementById('story-text');
+    el.classList.add('typing');
+    el.textContent = '';
+    if (typewriterTimer) clearInterval(typewriterTimer);
+
+    let i = 0;
+    typewriterTimer = setInterval(() => {
+      el.textContent += text.charAt(i);
+      i++;
+      if (i >= text.length) {
+        clearInterval(typewriterTimer);
+        el.classList.remove('typing');
+        if (onComplete) onComplete();
+      }
+    }, 30);
+
+    el.onclick = () => {
+      clearInterval(typewriterTimer);
+      el.textContent = text;
+      el.classList.remove('typing');
+      el.onclick = null;
+      if (onComplete) onComplete();
+    };
+  },
+
+  // --- Toast提示 ---
+  showToast(msg, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  },
+
+  // --- 存档系统 ---
+  saveGame() {
+    try {
+      if (!window.localStorage) return;
+      const data = {
+        version: '2.0',
+        savedAt: new Date().toISOString(),
+        player: { ...player },
+        gameState: { ...gameState },
+        usedOneTimeActions: Array.from(usedOneTimeActions),
+        eventHistory: eventHistory,
+        actionHistory: actionHistory,
+        // FIX-BUG-4: 保存已解锁成就，防止读档后重复弹出
+        achievementsUnlocked: Array.from(AchievementSys.unlocked)
+      };
+      localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  },
+
+  loadGame() {
+    try {
+      if (!window.localStorage) { this.showToast('浏览器不支持存档', 'error'); return; }
+      const raw = localStorage.getItem(CONFIG.SAVE_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      player = data.player;
+      gameState = data.gameState;
+      usedOneTimeActions = new Set(data.usedOneTimeActions || []);
+      eventHistory = data.eventHistory || [];
+      actionHistory = data.actionHistory || [];
+      // FIX-BUG-4: 恢复已解锁成就
+      AchievementSys.unlocked = new Set(data.achievementsUnlocked || []);
+      this.toGame();
+      this.renderAll();
+      this.typewrite('欢迎回来！第' + player.day + '天，你还在' + this.getLocation(player.location).name + '。继续你的冯如杯征程吧。');
+    } catch (e) {this.showToast('读档失败，请重新开始', 'error');
+    }
+  },
+
+
+  // --- 快速存档 ---
+  quickSave() {
+    this.saveGame();
+    AudioSys.save();
+    this.showToast('已存档！', 'success');
+  },
+
+  // --- 快速读档 ---
+  quickLoad() {
+    if (!localStorage.getItem(CONFIG.SAVE_KEY)) {
+      this.showToast('无存档记录', 'error'); return;
+    }
+    this.loadGame();
+    AudioSys.save();
+    this.showToast('读档成功！', 'success');
+  },
+
+  // --- 切换历史日志显示 ---
+  toggleHistory() {
+    document.getElementById('history-log').classList.toggle('show');
+  },
+
+  // --- 切换音效 ---
+  toggleSound() {
+    AudioSys.enabled = !AudioSys.enabled;
+    document.getElementById('sound-toggle').textContent = AudioSys.enabled ? '🔊' : '🔇';
+    this.showToast(AudioSys.enabled ? '音效已开启' : '音效已关闭', 'info');
+  },
+
+  // --- 渲染Buff显示 ---
+  renderBuff() {
+    const el = document.getElementById('buff-display');
+    const tags = document.getElementById('buff-tags');
+    const buffs = [];
+    if (gameState.nextActionMultiplier > 1) {
+      buffs.push(`<span class="buff-tag">AI辅助：效率+50%，下次行动</span>`);
+    }
+    if (gameState.forcedAction) {
+      const fa = gameState.forcedAction;
+      const name = fa.type === 'hospital' ? '住院中' : fa.type === 'remedial' ? '补救模式（完成度-30%）' : '补材料中';
+      buffs.push(`<span class="buff-tag" style="background:linear-gradient(90deg,#E53E3E,#FC8181);color:white;">${name}</span>`);
+    }
+    if (buffs.length) { tags.innerHTML = buffs.join(''); el.classList.add('show'); }
+    else { el.classList.remove('show'); }
+  },
+
+  // --- 渲染流程节点倒计时 ---
+  renderCountdown() {
+    const el = document.getElementById('checkpoint-countdown');
+    const checkpoints = [6, 20, 30, 40];
+    const next = checkpoints.find(d => d > player.day);
+    if (!next) { el.style.display = 'none'; return; }
+    const daysLeft = next - player.day;
+    const names = { 6: '开题报告', 20: '中期检查', 30: '有效性审查', 40: '最终答辩' };
+    el.style.display = 'block';
+    el.textContent = `距离${names[next]}还有${daysLeft}天`;
+    el.classList.toggle('urgent', daysLeft <= 2);
+  },
+
+  // --- 渲染历史日志 ---
+  renderHistory() {
+    const container = document.getElementById('log-entries');
+    const recent = actionHistory.slice(-5).reverse();
+    container.innerHTML = recent.map(h =>
+      `<div class="log-entry">第${h.day}天：${h.action} ${h.effects ? '(' + this.formatEffects(h.effects) + ')' : ''}</div>`
+    ).join('') || '<div class="log-entry" style="color:#aaa;">暂无记录</div>';
+  },
+
+  // --- 检查并弹出成就 ---
+  checkAchievements() {
+    const newly = AchievementSys.check();
+    newly.forEach((a, i) => setTimeout(() => this.showAchievement(a), i * 600));
+  },
+
+  // --- 显示成就弹窗 ---
+  showAchievement(ach) {
+    const el = document.getElementById('achievement-popup');
+    el.innerHTML = `<span style="font-size:20px;margin-right:8px;">${ach.icon}</span> 成就解锁：${ach.name}！${ach.desc}`;
+    el.classList.add('show');
+    AudioSys.achievement();
+    setTimeout(() => el.classList.remove('show'), 3000);
+  },
+
+  // --- 帮助弹窗 ---
+  showHelp() {
+    this.showModal('info', `<b>游戏目标：</b>在40天内准备冯如杯竞赛，平衡五维属性，争取最好结局。<br><br>
+      <b>操作流程：</b><br>
+      1. 每天先选择要去的地点<br>
+      2. 在地点中选择一项行动执行<br>
+      3. 行动会消耗精力并提升属性<br>
+      4. 每天结束时可能触发随机事件<br>
+      5. 第6/20/30/40天有硬性检查点<br><br>
+      <b>关键提示：</b><br>
+      - 精力过低会昏迷住院，注意及时休息<br>
+      - 使用AI工具需要答题，答对有buff加成<br>
+      - 主赛道难度大但可获特等奖<br>
+      - 小赛道更容易获奖但上限为一等奖<br>
+      - 多关注规范度，有效性审查是生死线`, null, '\u{1F4D6} 操作说明', 'var(--beihang-blue)');
+  }
+};
+
+// ===== 启动游戏 =====
+window.addEventListener('DOMContentLoaded', () => {
+  game.init();
+});
+</script>
+
+<div id="float-controls" style="display:none">
+  <button class="float-btn ripple" onclick="game.quickSave()" title="快速存档">💾</button>
+  <button class="float-btn ripple" onclick="game.quickLoad()" title="快速读档">📂</button>
+  <button class="float-btn ripple" onclick="game.toggleHistory()" title="历史记录">📜</button>
+</div>
+<div id="achievement-popup"></div>
+<button id="sound-toggle" onclick="game.toggleSound()">🔊</button>
+
+</body>
+</html>
