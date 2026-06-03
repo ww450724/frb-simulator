@@ -959,19 +959,77 @@ const game = {
     this.saveGame();
   },
 
+  // FIX-DEADLOCK: 补材料期间执行行动（work=补材料 / rest=休息）
+  doMaterialFix(type) {
+    if (this._isProcessing) return;
+    this._isProcessing = true;
+    const fa = gameState.forcedAction;
+    if (type === 'work') {
+      // FIX-DEADLOCK: 精力不足时自动转为休息
+      if (player.energy < 15) {
+        this.showToast('精力不足！请先休息恢复精力。', 'error');
+        this._isProcessing = false;
+        return;
+      }
+      // 补材料一天
+      player.standard = Math.min(100, Math.round(player.standard + 8));
+      player.energy = Math.max(0, Math.round(player.energy - 10));
+      const fixDay = 3 - fa.remainingDays + 1;
+      this.typewrite(`【补材料 第${fixDay}/3天】你埋头整理参考文献格式、核对材料清单。规范度+8，精力-10。当前规范度：${Math.round(player.standard)}，精力：${Math.round(player.energy)}。`);
+      fa.remainingDays--;
+      actionHistory.push({ day: player.day, action: '补材料', effects: { standard: 8, energy: -10 }, loc: player.location });
+      if (fa.remainingDays <= 0) {
+        gameState.forcedAction = null;
+        this.showToast('补材料完成！材料已重新提交。', 'success');
+      }
+    } else {
+      // 休息一天（不消耗补材料天数）
+      player.energy = Math.min(CONFIG.ENERGY_MAX, Math.round(player.energy + 25));
+      this.typewrite(`【补材料间隙休息】你太累了，决定先休息一天恢复精力。精力+25。当前精力：${Math.round(player.energy)}。补材料剩余天数：${fa.remainingDays}（休息不消耗天数）。`);
+      actionHistory.push({ day: player.day, action: '补材料间隙休息', effects: { energy: 25 }, loc: player.location });
+    }
+    this.renderAll();
+    this.saveGame();
+    this.showToast(`第${player.day}天结束，进入第${player.day + 1}天...`, 'info');
+    setTimeout(() => {
+      this._isProcessing = false;
+      player.day++;
+      // 检查是否到达新的流程节点
+      if (CONFIG.CHECKPOINT_DAYS.includes(player.day)) {
+        this.checkCheckpoint(player.day);
+        return;
+      }
+      // 检查是否超过总天数
+      if (player.day > CONFIG.TOTAL_DAYS) {
+        this.checkEnding();
+        return;
+      }
+      this.checkRandomEvent();
+      this.renderAll();
+      this.saveGame();
+    }, 800);
+  },
+
   // --- 渲染行动按钮 ---
   renderActions() {
     const container = document.getElementById('action-buttons');
     container.innerHTML = '';
     const loc = this.getLocation(player.location);
 
-    // FIX-BUG-3: 补材料期间只显示"继续补材料"按钮
+    // FIX-DEADLOCK: 补材料期间允许选择补材料或休息恢复精力
     if (gameState.forcedAction && gameState.forcedAction.type === 'material_fix') {
-      const btn = document.createElement('button');
-      btn.className = 'action-btn ripple';
-      btn.innerHTML = `<span class="act-name">继续补材料</span><span class="act-effect">规范度+8 精力-10（自动）</span>`;
-      btn.onclick = () => { this.showToast('正在补材料中，请等待下一天...', 'info'); };
-      container.appendChild(btn);
+      // 按钮1：继续补材料
+      const btn1 = document.createElement('button');
+      btn1.className = 'action-btn ripple';
+      btn1.innerHTML = `<span class="act-name">继续补材料</span><span class="act-effect">规范度+8 精力-10（剩余${gameState.forcedAction.remainingDays}天）</span>`;
+      btn1.onclick = () => this.doMaterialFix('work');
+      container.appendChild(btn1);
+      // 按钮2：先休息恢复精力（精力低时推荐）
+      const btn2 = document.createElement('button');
+      btn2.className = 'action-btn ripple';
+      btn2.innerHTML = `<span class="act-name">先休息恢复精力</span><span class="act-effect">精力+25（不消耗补材料天数）</span>`;
+      btn2.onclick = () => this.doMaterialFix('rest');
+      container.appendChild(btn2);
       this.renderLocationBar();
       return;
     }
@@ -1232,15 +1290,24 @@ const game = {
           this.showToast('补救成功！完成度达标，解除限制。', 'success');
         }
       } else if (fa.type === 'material_fix') {
-        // FIX-BUG-3: 补材料模式 - 每天自动补材料
-        const fixDay = 3 - fa.remainingDays + 1;
-        player.standard = Math.min(100, Math.round(player.standard + 8));
-        player.energy = Math.max(0, Math.round(player.energy - 10));
-        this.typewrite(`【补材料 第${fixDay}/3天】你埋头整理参考文献格式、核对材料清单。规范度+8，精力-10。当前规范度：${Math.round(player.standard)}。`);
-        fa.remainingDays--;
-        if (fa.remainingDays <= 0) {
-          gameState.forcedAction = null;
-          this.showToast('补材料完成！材料已重新提交。', 'success');
+        // FIX-DEADLOCK: 补材料模式 - 精力不足时自动休息，不触发住院（避免覆盖状态）
+        if (player.energy < 15) {
+          // 精力太低，自动休息一天（不消耗补材料天数）
+          player.energy = Math.min(CONFIG.ENERGY_MAX, Math.round(player.energy + 25));
+          this.typewrite(`【补材料间隙休息】你太累了，无法集中精力整理材料。先休息一天恢复精力。精力+25。当前精力：${Math.round(player.energy)}。补材料剩余天数：${fa.remainingDays}（休息不消耗天数）。`);
+          actionHistory.push({ day: player.day, action: '补材料间隙休息', effects: { energy: 25 }, loc: player.location });
+        } else {
+          // 正常补材料
+          const fixDay = 3 - fa.remainingDays + 1;
+          player.standard = Math.min(100, Math.round(player.standard + 8));
+          player.energy = Math.max(0, Math.round(player.energy - 10));
+          this.typewrite(`【补材料 第${fixDay}/3天】你埋头整理参考文献格式、核对材料清单。规范度+8，精力-10。当前规范度：${Math.round(player.standard)}，精力：${Math.round(player.energy)}。`);
+          fa.remainingDays--;
+          actionHistory.push({ day: player.day, action: '补材料', effects: { standard: 8, energy: -10 }, loc: player.location });
+          if (fa.remainingDays <= 0) {
+            gameState.forcedAction = null;
+            this.showToast('补材料完成！材料已重新提交。', 'success');
+          }
         }
       }
       this.renderAll();
